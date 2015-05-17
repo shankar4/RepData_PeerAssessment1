@@ -1,0 +1,209 @@
+---
+title: "PA1_template"
+author: "Ravi Shankar"
+date: "Sunday, May 17, 2015"
+output: html_document
+---
+### set up caching and knitr chunk dependency calculation
+``` {r setoptions,tidy=F, cache=F, eval=T, echo=F, results = "hide"}opts_chunk$set(autodep=T)dep_auto()
+```
+
+### Run the following data prep steps. Assumed that the working directory has a folder with .csv data:
+
+### Part 1: Loading and preprocessing the data
+
+```{r dataprep,tidy=F,cache=T}
+dir<- "C:/Users/shankar/Desktop/Reproducible_Research/Data/PA1_submission"
+setwd(dir)
+dir <- getwd()
+sub.dir <- "repdata_data_activity/activity.csv"
+data.dir <- paste(dir, sub.dir, sep="/")
+fit.steps <- read.csv(data.dir)
+paste('checked at',date())
+```
+### Part 2: What is the mean total number of steps taken per day?
+```{r part2steps12,tidy=F,cache=T}
+#Remove Nas
+fit.steps.good <- na.omit(fit.steps)
+summary (fit.steps.good$date)
+date.factor <- factor(fit.steps.good$date)
+# Assignment, Part 2 step 1: Find total number of steps taken per day
+day.sum<-tapply(fit.steps.good$steps, date.factor, sum)
+day.sum
+# Assignment, Part 2 step 2: Make a histogram of the total number of steps taken each day"
+pdf("HistogramStepsNAIgnored.pdf")
+hist(day.sum,breaks=100,col='red', xlab="Total Steps Per Day", main='Histogram')
+dev.off()
+```
+##### The histogram was saved to HistogramStepsNAIgnored.pdf
+
+```{r part2step 3,tidy=F,cache=T}
+# Assignment, Part 2 step 3: Calculate and report mean and median of the total number of stepts taken per day
+day.mean <-tapply(fit.steps.good$steps, date.factor, mean)
+day.mean
+day.median <-tapply(fit.steps.good$steps, date.factor, median)
+day.median
+```
+
+##### The mean of the total number of steps taken per day are `r day.mean`. See above for a better formatted output along with dates.
+
+##### The median of the total number of steps taken per day are `r day.median`.See above for a better formatted output along with dates.
+
+### Part 3: What is the average daily activity pattern?
+
+```{r part3step1,tidy=F,cache=T}
+#Assignment Part 3 step 1: Time series plot of the 5-minute interval (x-axis)
+# and the average number of steps taken, averaged across all days (y-axis)
+
+interval.factor.good <- factor(fit.steps.good$interval)
+interval.mean.good <- tapply(fit.steps.good$steps, interval.factor.good, mean)
+
+# Make a time-series plot
+pdf("TimeSeriesAvgStepsNAIgnored.pdf")
+opar<-par(no.readonly=TRUE)
+par(lty=1, pch=17)
+plot(fit.steps.good$interval[1:288], interval.mean.good, type = "l", main = "Time Series Plot",ylab ="Average No. of Steps" ,xlab="5 min time intervals")
+par(opar)
+dev.off()
+```
+##### The Time Series Plot was saved to TimeSeriesAvgStepsNAIgnored.pdf
+
+```{r part3step2,tidy=F,cache=T}
+#Assignment Part 3 step 2: Find and report the max. number of steps
+steps.max.good = max(interval.mean.good)
+a<- interval.mean.good
+b<- which(a==max(a))
+time.at.max <- fit.steps.good$interval[b]
+time.at.max
+steps.max.good
+```
+##### The maximum number of steps is `r steps.max.good` at this 5-minute interval: `r time.at.max`.
+
+### Part 4: Imputing missing values
+
+```{r part4step1,tidy=F,cache=T}
+# Part 4, step 1: Calculate and report the total # of missing values in the dataset
+missing.flag <- is.na(fit.steps$steps)
+no.missing <- table(missing.flag)["TRUE"]
+no.missing 
+```
+
+##### The number of missing values in the dataset are `r no.missing`.
+
+```{r part4step2,tidy=F,cache=T}
+#Part 4, part 2: Devise a strategy to replace NAs in the dataset
+# Replaced the missing values with the mean for the 5 minute interval
+
+# First, tried replacing with the day average. This was not meaningful - day long data were missing
+fit.steps.good <- na.omit(fit.steps)
+# There were only 53 levels now.
+date.factor.good <- factor(fit.steps.good$date)
+day.mean.good <- tapply(fit.steps.good$steps, date.factor.good, mean)
+# so, there were 8 days with no activity at all. So, this is not a good way
+# to find means to plug into na slots.
+
+# Second, tried to find the mean for a given 5 minute interval and may be there will be
+# no na factors there (that is, it will return 288 both times)
+# This was verified to be the case.
+# So, mean for 5 minute intervals are calculated and are used in place of NAs 
+interval.factor <- factor(fit.steps$interval)
+interval.factor.good <- factor(fit.steps.good$interval)
+interval.mean.good <- tapply(fit.steps.good$steps, interval.factor.good, mean)
+```
+##### Strategy used: Use the mean for 5-minute intervals to substitite for missing values. 
+
+```{r part4step3,tidy=F,cache=T}
+#Part 4, step 3: create a new dataset 
+fit.index <- !is.na(fit.steps$steps)
+# if fit.index is FALSE, change the NA to mean value for that interval
+fs <- fit.steps
+img <- interval.mean.good
+# add img to fs data set. img is repeated for all the data sets
+fs$mean <- img
+# Just to compare and contrast, create another array - 'step' and update the
+# NAs based on the index flag. All other values should remain the same. 
+fs$step[!fit.index]<- fs$mean[!fit.index]
+#Verified that the numbers are OK for the case of 3
+
+new.fit.steps <- fit.steps
+new.fit.steps$steps <- fs$step
+```
+##### Created a new dataset above that is equal to the orignial dataset but with the missing data filled in.
+
+```{r part4step4ab,tidy=F,cache=T}
+# Part 4, step 4: Make a histogram and calculate mean and median. Are they
+# different?
+
+summary (new.fit.steps$date)
+new.date.factor <- factor(new.fit.steps$date)
+# Assignment, Part 4, Step 4a: Find total number of steps taken per day
+new.day.sum<-tapply(new.fit.steps$steps, new.date.factor, sum)
+new.day.sum
+# Assignment, Part 4, Step 4b: Make a histogram of the total number of steps taken each day"
+pdf("HistogramStepsNAFilled.pdf")
+hist(new.day.sum,breaks=100,col='red', xlab="Total Steps Per Day", main='Histogram')
+dev.off()
+```
+```{r part4step4c,tidy=F,cache=T}
+# assignment, Part 4, sub part 4: Calculate mean and median. Are they diffeent?
+summary(new.fit.steps)
+summary(fit.steps)
+# No effect since the average is added to the NA and avearged. 
+# As an example, With 10 values at 1, the average is 1. Now replace one NA with 1. 
+#Take the new average for 11 values of 1 each. It is still 1. 
+```
+##### Total daily number of steps remains the same, as explained above in comments
+
+### Part 5: Are there differences in activity patterns between weekdays and weekends?
+
+```{r part5step1,tidy=F,cache=T}
+# set up a vector of weekday (false) or weekend
+#remove factor
+date.char <- as.character(new.fit.steps$date)
+step.date <- as.Date(date.char,'%Y-%m-%d')
+# step.date
+head(step.date)
+tail(step.date)
+day.name <- weekdays(step.date)
+# day.name
+head(day.name)
+tail(day.name)
+new.fit.steps$day.name <- day.name
+# set up a flag -- to distinguish weekdays from weekend
+wkend1 <- "Saturday"
+wkend2 <- "Sunday"
+weekend.flag <- (day.name == wkend1) | (day.name == wkend2)
+head(weekend.flag)
+tail(weekend.flag)
+new.fit.steps$weekend.flag <- weekend.flag
+#split based on weekday (FALSE) or weekend day (TRUE)
+
+#calculate 5 minute interval means for weekdays and weekend days separately
+
+new.fit.steps.weekday <- new.fit.steps[which (new.fit.steps$weekend.flag == "FALSE"),]
+new.interval.weekday.factor  <- factor(new.fit.steps.weekday$interval)
+new.fit.steps.weekend <- new.fit.steps[which (new.fit.steps$weekend.flag == "TRUE"),]
+new.interval.weekend.factor  <- factor(new.fit.steps.weekend$interval)
+new.interval.mean.weekday  <- tapply(new.fit.steps.weekday$steps, new.interval.weekday.factor, mean)
+new.interval.mean.weekend  <- tapply(new.fit.steps.weekend$steps, new.interval.weekend.factor, mean)
+```
+##### Two sets of data for weekday and weekend day are obtained (see above)
+#####Hello
+
+```{r part5step2,tidy=F,cache=T}
+#plot both weekday and weekend separately
+opar<-par(no.readonly=TRUE)
+par(lty=1, pch=17)
+split.screen(c(2,1))
+#set.panel(2,1)
+pdf("TimeSeriesWeekdayWeekendStepsNAFilled.pdf")
+screen(1)
+plot(fit.steps.good$interval[1:288], new.interval.mean.weekday, type = "l", main = "Weekday Time Series Plot",ylab ="Average No. of Steps" ,xlab="5 min time intervals")
+screen(2)
+plot(fit.steps.good$interval[1:288], new.interval.mean.weekend, type = "l", main = "Weekend Time Series Plot",ylab ="Average No. of Steps" ,xlab="5 min time intervals")
+dev.off()
+#set.panel()
+par(opar)
+```
+##### Two panel plots for weekday and weekend days is saved in TimeSeriesWeekdayWeekendStepsNAFilled.pdf (two plots). Much more activity during the whole weekend day(s) is noted. 
+
